@@ -1,0 +1,106 @@
+#!/bin/bash
+####
+#### Script Name    : wemail
+#### Description    : Send and Read emails from commandline
+#### Copyright      : (C) 2018  wuseman <wuseman@nr1.nu> - All Rights Reserved
+#### Version        : 1.0
+#### Usage:        : ./email -s
+
+REALNAME="real name"
+MAILADDRESS="mailaddress@gmail.com"
+PHONENUMBER="+46xxxxxxx"
+
+from="$REALNAME <$MAILADDRESS>"
+email_text="$(head /dev/urandom|tr -dc A-Za-z0-9|head -c 2 ; echo ''-gmail.txt)"
+email_sent="~/.mail/sent"
+email_drafts="~/.mail/drafts/$email_text"
+email_canceled="~/.mail/canceled/$email_text"
+
+set -e
+set -o pipefail
+shopt -s nullglob
+
+if [[ ! -d ~/.mail/sent ]]; then
+   mkdir -p ~/.mail/sent
+   printf "\e[1;31mCreated ~/.mail/sent since it first time you will send an email\n\e[0m"
+   chmod -R 755 ~/.mail/sent
+
+fi
+
+if [[ ! -d ~/.mail/canceled ]]; then
+   mkdir -p ~/.mail/canceled
+   printf "\e[1;31mCreated ~/.mail/canceled since it first time you will send an email\n\e[0m"
+   chmod -R 755 ~/.mail/canceled
+
+fi
+
+if [[ ! -d ~/.mail/drafts ]]; then
+   mkdir -p ~/.mail/drafts
+   chmod -R 755 ~/.mail
+   printf "\e[1;31mCreated ~/.mail/drafts since it first time you will send an email\n\e[0m"
+   printf "\nJust execute wmail -s again and all is ready..\n\n"
+exit
+fi
+
+
+if [[ $whoami = "FirstName LastName <email>" ]]; then
+echo "Error: You must set 'Firstname Lastname <email>' in wmail"
+exit 0
+fi
+
+help() {
+ echo -e "\nusage for $basename$0: [-h] [-r] [-s]"
+ echo ""
+ echo "  where: "
+ echo "      -h HELP     - Will print this help"
+ echo "      -s SENDMAIL - Send email directly from commandline"
+ echo -e "      -r READMAIL - Mutt will be used for read emails\n"
+ exit
+}
+
+if [[ -z $1 ]]; then
+   help
+   exit
+fi
+
+send_email() {
+read -p "Send To: " reciver
+read -p "Subject: " subject
+clear
+echo "From: $from" >> $email_drafts
+echo "Subject: $subject" >> $email_drafts
+echo "To: $reciver" >> $email_drafts
+echo "----------------------------------------------------------------" >> $email_drafts
+echo -e "\n<enter text youw want to send from this line (erase this line)>\n\nMVH: $REALNAME\nTel: $PHONENUMBER\nMail: $MAILADDRESS\n" >> $email_drafts
+nano $email_drafts
+echo ""
+cat $email_drafts
+echo "----------------------------------------------------------------"
+
+read -p "Are you sure you want to send this email (Y/n): " areusure
+echo ""
+
+case $areusure in
+     Y)
+        sed -i '4d' $email_drafts
+        echo -e "Please wait..\n"
+        sendmail -t < $email_drafts
+        echo -e "Email has been sent.\n"
+        echo -e "[$(date +%Y/%m/%d)] - Sent to: $reciver" >> ~/.mail/contacts.txt
+        mv $email_drafts $email_sent
+        ;;
+
+     n) echo "Ok, aborted"
+        mv $email_drafts $email_canceled ;;
+esac
+}
+
+while getopts ":shr" opt; do
+  case $opt in
+    s) send_email ;;
+    r) mutt ;;
+    h) banner; help ;;
+   \?) echo "Invalid option: -$OPTARG" >&2 ;;
+  esac
+done
+
