@@ -1,4 +1,4 @@
-# WFTP
+# WMAIL
 
 Simple bash script for send email address from commandline
 
